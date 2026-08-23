@@ -1,0 +1,10 @@
+discord.py>=2.3.2
+redis>=6.0
+aiosqlite>=0.21
+sentry-sdk>=2.30
+python-dotenv>=1.1
+Pillow==10.2.0
+aiohttp==3.9.3
+fastapi>=0.115
+uvicorn[standard]>=0.34
+pydantic>=2.12
