@@ -1,0 +1,5 @@
+@echo off
+title Horizon Bot - Console
+cd /d "%~dp0"
+python console.py
+pause
