@@ -1,0 +1,685 @@
+import discord
+from discord.ext import commands
+from ..core.logger import logger
+import os
+import asyncio
+
+# ==========================================
+# МЕНЮ И МОДАЛЬНЫЕ ОКНА НАБОРА (С БЕСКОНЕЧНЫМ ТАЙМАУТОМ)
+# ==========================================
+class StaffApplicationView(discord.ui.View):
+    def __init__(self, bot: commands.Bot):
+        # timeout=None = кнопки никогда не пропадут сами по себе
+        super().__init__(timeout=None)
+        self.bot = bot
+        
+        select = discord.ui.Select(
+            placeholder="📋 Выберите желаемую должность",
+            min_values=1,
+            max_values=1,
+            options=[
+                discord.SelectOption(label="Администратор", value="admin", description="Управление сервером и персоналом", emoji="🛡️"),
+                discord.SelectOption(label="Модератор", value="moderator", description="Следить за порядком на сервере", emoji="🔨"),
+                discord.SelectOption(label="Хелпер", value="helper", description="Помощь новым участникам", emoji="💡"),
+            ]
+        )
+        select.callback = self.select_callback
+        self.add_item(select)
+
+    async def select_callback(self, interaction: discord.Interaction):
+        role = interaction.data["values"][0]
+        role_names = {"admin": "Администратор", "moderator": "Модератор", "helper": "Хелпер"}
+        role_name = role_names.get(role, role)
+
+        # Проверяем статус набора
+        status_row = await self.bot.db.fetchone("SELECT value FROM guild_settings WHERE guild_id = ? AND key = 'staff_status'", interaction.guild.id)
+        is_active = status_row is None or status_row["value"] == "active"
+        
+        if not is_active:
+            return await interaction.response.send_message("❌ Набор в штат временно приостановлен! Ожидайте возобновления.", ephemeral=True)
+
+        is_admin = interaction.user.guild_permissions.administrator
+
+        if not is_admin:
+            existing = await self.bot.db.fetchone("SELECT * FROM staff_members WHERE guild_id = ? AND user_id = ? AND is_active = 1", interaction.guild.id, interaction.user.id)
+            if existing:
+                return await interaction.response.send_message("❌ Вы уже в штате.", ephemeral=True)
+
+            existing_app = await self.bot.db.fetchone("SELECT * FROM staff_applications WHERE guild_id = ? AND user_id = ? AND status = 'pending'", interaction.guild.id, interaction.user.id)
+            if existing_app:
+                return await interaction.response.send_message("⚠️ У вас уже есть активная заявка! Ожидайте решения.", ephemeral=True)
+        
+        await interaction.response.send_modal(StaffApplicationModal(self.bot, role, role_name))
+
+
+class StaffApplicationModal(discord.ui.Modal, title="📝 Анкета в штат"):
+    def __init__(self, bot: commands.Bot, role: str, role_name: str):
+        super().__init__()
+        self.bot = bot
+        self.role = role
+        self.role_name = role_name
+    
+    age = discord.ui.TextInput(label="🎂 Возраст", placeholder="Например: 18", required=True, min_length=1, max_length=3)
+    experience = discord.ui.TextInput(label="💼 Опыт работы", placeholder="Ваш опыт модерации/администрирования", required=True, style=discord.TextStyle.paragraph, max_length=500)
+    about = discord.ui.TextInput(label="👤 О себе", placeholder="Почему вы хотите стать частью команды?", required=True, style=discord.TextStyle.paragraph, max_length=1000)
+    timezone = discord.ui.TextInput(label="🌍 Часовой пояс", placeholder="Например: UTC+3 (Москва)", required=True, max_length=50)
+    availability = discord.ui.TextInput(label="⏰ Доступность", placeholder="Сколько часов в день готовы уделять?", required=True, max_length=100)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            age = int(self.age.value)
+            if age < 17:
+                return await interaction.response.send_message("❌ Вы слишком молоды. Требуемый возраст: 17+", ephemeral=True)
+        except ValueError:
+            return await interaction.response.send_message("❌ Неверный возраст.", ephemeral=True)
+        
+        row = await self.bot.db.fetchone("SELECT COALESCE(MAX(application_number), 0) + 1 AS next FROM staff_applications WHERE guild_id = ?", interaction.guild.id)
+        app_number = row["next"]
+        
+        await self.bot.db.execute(
+            """INSERT INTO staff_applications (guild_id, user_id, role, age, experience, about, timezone, availability, status, application_number) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)""",
+            interaction.guild.id, interaction.user.id, self.role, age, self.experience.value, self.about.value, self.timezone.value, self.availability.value, app_number
+        )
+
+        embed = discord.Embed(description=f"✅ **Заявка #{app_number:04d} принята!**\n\nВаша заявка на роль **{self.role_name}** была отправлена на рассмотрение. Ожидайте вердикта.", color=discord.Color.green())
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        await self.send_to_private_channel(interaction.guild, interaction.user, app_number, age, self.experience.value, self.about.value, self.timezone.value, self.availability.value, self.role, self.role_name)
+
+    async def send_to_private_channel(self, guild, user, app_number, age, experience, about, timezone, availability, role, role_name):
+        row = await self.bot.db.fetchone("SELECT value FROM guild_settings WHERE guild_id = ? AND key = 'private_applications'", guild.id)
+        if not row: return
+        channel = guild.get_channel(int(row["value"]))
+        if not channel: return
+            
+        embed = discord.Embed(
+            description=(
+                f"🔒 **НОВАЯ ЗАЯВКА #{app_number:04d}**\n\n"
+                f"**Пользователь:** {user.mention}\n"
+                f"**ID:** {user.id}\n\n"
+                f"🎂 **Возраст:** `{age}`\n"
+                f"🌍 **Часовой пояс:** `{timezone}`\n"
+                f"⏰ **Доступность:** `{availability}`\n\n"
+                f"💼 **Опыт работы:**\n{experience}\n\n"
+                f"👤 **О себе:**\n{about}"
+            ),
+            color=discord.Color.dark_gold()
+        )
+        
+        view = StaffPrivateVerdictView(self.bot, app_number, user.id, role, role_name)
+        await channel.send(embed=embed, view=view)
+
+
+# ==========================================
+# ВЕРДИКТЫ И СТАЖИРОВКА (РАЗДЕЛЕНА ЛОГИКА)
+# ==========================================
+class StaffPrivateVerdictView(discord.ui.View):
+    def __init__(self, bot: commands.Bot, app_number: int, user_id: int, role: str, role_name: str):
+        # timeout=None = кнопки никогда не пропадут сами по себе
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.app_number = app_number
+        self.user_id = user_id
+        self.role = role
+        self.role_name = role_name
+
+    @discord.ui.button(label="✅ Одобрить", style=discord.ButtonStyle.success)
+    async def accept_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+
+        if not self.is_admin(interaction.user):
+            return await interaction.followup.send("⛔ У вас нет прав для вердикта.", ephemeral=True)
+
+        row = await self.bot.db.fetchone("SELECT * FROM staff_applications WHERE application_number = ? AND guild_id = ? AND status = 'pending'", self.app_number, interaction.guild.id)
+        if not row:
+            await interaction.message.edit(view=None)
+            return await interaction.followup.send("Заявка уже обработана.", ephemeral=True)
+
+        role_row = await self.bot.db.fetchone("SELECT value FROM guild_settings WHERE guild_id = ? AND key = 'staff_role'", interaction.guild.id)
+        internship_role_name = role_row["value"] if role_row else "Стажер"
+        
+        internship_role = discord.utils.get(interaction.guild.roles, name=internship_role_name)
+        if not internship_role:
+            internship_role = await interaction.guild.create_role(name=internship_role_name, color=discord.Color.blue())
+
+        already_member = await self.bot.db.fetchone("SELECT * FROM staff_members WHERE guild_id = ? AND user_id = ? AND is_active = 1", interaction.guild.id, row["user_id"])
+        if not already_member:
+            await self.bot.db.execute("INSERT INTO staff_members (guild_id, user_id, role, added_by) VALUES (?, ?, ?, ?)", interaction.guild.id, row["user_id"], row["role"], interaction.user.id)
+        
+        await self.bot.db.execute("UPDATE staff_applications SET status = 'accepted', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?", interaction.user.id, row["id"])
+
+        await interaction.message.edit(view=None)
+
+        member = interaction.guild.get_member(self.user_id)
+        
+        await self.send_public_verdict(interaction, True, None, internship_role_name)
+        
+        # ЛОГИКА ОДОБРЕНИЯ: Только здесь выдаём роль и создаём каналы
+        if member:
+            if internship_role not in member.roles:
+                await member.add_roles(internship_role, reason="Начало стажировки по заявке")
+
+            text_channel, stage_channel, is_created = await self.get_or_create_shared_tribunes(interaction.guild, internship_role)
+            
+            if text_channel:
+                ping_msg = await text_channel.send(f"🎉 Новый стажер! {member.mention} присоединился к команде! Добро пожаловать!")
+                await asyncio.sleep(5)
+                try:
+                    await ping_msg.delete()
+                except:
+                    pass
+
+            if is_created and text_channel:
+                embed = discord.Embed(
+                    title="🎤 Добро пожаловать на стажировку!",
+                    description=(
+                        f"Поздравляем с одобрением!\n\n"
+                        f"Вы и другие кандидаты были приглашены в общий канал.\n"
+                        f"**Сцена для обсуждения и голосования:** {stage_channel.mention if stage_channel else 'Создается...'}\n\n"
+                        f"Здесь пройдет финальный этап проверки!"
+                    ),
+                    color=discord.Color.blue()
+                )
+                await text_channel.send(embed=embed)
+
+        msg = await interaction.followup.send("✅ Заявка одобрена! Роль выдана.", ephemeral=False)
+        await asyncio.sleep(2)
+        try:
+            await msg.delete()
+        except:
+            pass
+
+    @discord.ui.button(label="❌ Отклонить", style=discord.ButtonStyle.danger)
+    async def reject_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # ЛОГИКА ОТКЛОНЕНИЯ: Никаких ролей и каналов!
+        if not self.is_admin(interaction.user):
+            return await interaction.response.send_message("⛔ У вас нет прав для вердикта.", ephemeral=True)
+        
+        row = await self.bot.db.fetchone("SELECT * FROM staff_applications WHERE application_number = ? AND guild_id = ? AND status = 'pending'", self.app_number, interaction.guild.id)
+        if not row:
+            await interaction.message.edit(view=None)
+            return await interaction.response.send_message("Заявка уже обработана.", ephemeral=True)
+
+        await interaction.response.send_modal(StaffPrivateRejectModal(self.bot, self.app_number, self.user_id, self.role, self.role_name))
+
+    async def get_or_create_shared_tribunes(self, guild: discord.Guild, internship_role: discord.Role):
+        category = discord.utils.get(guild.categories, name="༺𓆩《📂》・Набор в штат")
+        if not category:
+            category = await guild.create_category("༺𓆩《📂》・Набор в штат")
+
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False, connect=False),
+            internship_role: discord.PermissionOverwrite(read_messages=True, send_messages=True, connect=True, speak=True, request_to_speak=True),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, connect=True, speak=True, request_to_speak=True)
+        }
+        for m in guild.members:
+            if m.guild_permissions.administrator:
+                overwrites[m] = discord.PermissionOverwrite(read_messages=True, send_messages=True, connect=True, speak=True, request_to_speak=True)
+
+        is_created = False
+        
+        text_channel = discord.utils.get(category.channels, name="🗣・собеседование")
+        if not text_channel:
+            text_channel = await guild.create_text_channel(
+                name="🗣・собеседование",
+                category=category,
+                overwrites=overwrites,
+                topic="Общая стажировка для всех кандидатов. Обсуждение и проверка."
+            )
+            is_created = True
+
+        stage_channel = discord.utils.get(category.channels, name="🎙・трибуна")
+        if not stage_channel:
+            stage_channel = await guild.create_stage_channel(
+                name="🎙・трибуна",
+                category=category,
+                overwrites=overwrites
+            )
+            is_created = True
+
+        return text_channel, stage_channel, is_created
+
+    async def send_public_verdict(self, interaction: discord.Interaction, accepted: bool, reason: str = None, internship_role_name: str = "Стажер"):
+        member = interaction.guild.get_member(self.user_id)
+        if not member:
+            return
+
+        if accepted:
+            embed = discord.Embed(
+                title="✅ ЗАЯВКА ОДОБРЕНА",
+                description=(
+                    f"**Ваша заявка на роль `{self.role_name}` одобрена!**\n\n"
+                    f"Мы рассмотрели вашу заявку и приняли решение пригласить вас в наш отряд!\n"
+                    f"Добро пожаловать в команду!\n\n"
+                    f"Вам была выдана роль **{internship_role_name}**. Пройдите в канал `🗣・собеседование` в категории `Набор в штат` для продолжения."
+                ),
+                color=discord.Color.green()
+            )
+            embed.add_field(name="👤 Рассмотрел", value=interaction.user.mention, inline=False)
+        else:
+            embed = discord.Embed(
+                title="❌ ЗАЯВКА ОТКЛОНЕНА",
+                description=(
+                    f"**Ваша заявка на роль `{self.role_name}` была отклонена.**\n\n"
+                    f"Мы ценим ваш интерес, однако, к сожалению, вынуждены отказать вам.\n"
+                    f"Спасибо за проявленное внимание!"
+                ),
+                color=discord.Color.red()
+            )
+            embed.add_field(name="👤 Рассмотрел", value=interaction.user.mention, inline=False)
+            if reason:
+                embed.add_field(name="📄 Комментарий / Причина", value=reason, inline=False)
+
+        embed.set_footer(text="Система набора Horizon")
+        
+        try:
+            await member.send(embed=embed)
+        except discord.Forbidden:
+            pass
+
+    def is_admin(self, member: discord.Member) -> bool:
+        return member.guild_permissions.administrator or member.guild.owner_id == member.id
+
+
+class StaffPrivateRejectModal(discord.ui.Modal, title="❌ Причина отклонения"):
+    def __init__(self, bot: commands.Bot, app_number: int, user_id: int, role: str, role_name: str):
+        super().__init__()
+        self.bot = bot
+        self.app_number = app_number
+        self.user_id = user_id
+        self.role = role
+        self.role_name = role_name
+    
+    reason = discord.ui.TextInput(label="Комментарий / Причина отказа", placeholder="Укажите причину отклонения...", required=True, style=discord.TextStyle.paragraph, max_length=500)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        row = await self.bot.db.fetchone("SELECT * FROM staff_applications WHERE application_number = ? AND guild_id = ? AND status = 'pending'", self.app_number, interaction.guild.id)
+        if not row:
+            return await interaction.response.send_message("Заявка уже обработана.", ephemeral=True)
+            
+        await self.bot.db.execute("UPDATE staff_applications SET status = 'rejected', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, reject_reason = ? WHERE id = ?", interaction.user.id, self.reason.value, row["id"])
+
+        await interaction.message.edit(view=None)
+        await self.send_public_verdict(interaction, False, self.reason.value)
+        
+        msg = await interaction.response.send_message("❌ Заявка отклонена.", ephemeral=False)
+        await asyncio.sleep(2)
+        try:
+            await msg.delete()
+        except:
+            pass
+
+    async def send_public_verdict(self, interaction: discord.Interaction, accepted: bool, reason: str):
+        member = interaction.guild.get_member(self.user_id)
+        if not member:
+            return
+
+        role_row = await self.bot.db.fetchone("SELECT value FROM guild_settings WHERE guild_id = ? AND key = 'staff_role'", interaction.guild.id)
+        internship_role_name = role_row["value"] if role_row else "Стажер"
+
+        if accepted:
+            embed = discord.Embed(
+                title="✅ ЗАЯВКА ОДОБРЕНА",
+                description=(
+                    f"**Ваша заявка на роль `{self.role_name}` одобрена!**\n\n"
+                    f"Мы рассмотрели вашу заявку и приняли решение пригласить вас в наш отряд!\n"
+                    f"Добро пожаловать в команду!\n\n"
+                    f"Вам была выдана роль **{internship_role_name}**. Пройдите в канал `🗣・собеседование` в категории `Набор в штат` для продолжения."
+                ),
+                color=discord.Color.green()
+            )
+            embed.add_field(name="👤 Рассмотрел", value=interaction.user.mention, inline=False)
+        else:
+            embed = discord.Embed(
+                title="❌ ЗАЯВКА ОТКЛОНЕНА",
+                description=(
+                    f"**Ваша заявка на роль `{self.role_name}` была отклонена.**\n\n"
+                    f"Мы ценим ваш интерес, однако, к сожалению, вынуждены отказать вам.\n"
+                    f"Спасибо за проявленное внимание!"
+                ),
+                color=discord.Color.red()
+            )
+            embed.add_field(name="👤 Рассмотрел", value=interaction.user.mention, inline=False)
+            if reason:
+                embed.add_field(name="📄 Комментарий / Причина", value=reason, inline=False)
+
+        embed.set_footer(text="Система набора Horizon")
+        
+        try:
+            await member.send(embed=embed)
+        except discord.Forbidden:
+            pass
+
+
+# ==========================================
+# ГЛАВНЫЙ КОГ (С КОМАНДАМИ УПРАВЛЕНИЯ + reload_staff_logic)
+# ==========================================
+class Staff(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.staff_category_name = "༺𓆩《📂》・Набор в штат"
+
+    async def create_wide_banner(self, guild: discord.Guild):
+        try:
+            image_path = os.path.join("assets", "images", "banner.png")
+            
+            if not os.path.exists(image_path):
+                logger.error(f"Файл {image_path} не найден!")
+                return None
+                
+            return discord.File(image_path, filename="banner.png")
+            
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке баннера: {e}")
+            return None
+
+    @commands.hybrid_command(name="staffrole", aliases=["рольстажера"], description="Установить роль для стажировки")
+    async def staff_role(self, ctx: commands.Context, *, role_name: str):
+        await ctx.message.delete()
+
+        if not ctx.author.guild_permissions.administrator:
+            return await ctx.send(embed=discord.Embed(title="⛔ НЕДОСТАТОЧНО ПРАВ", color=discord.Color.red()), delete_after=3)
+        
+        role = discord.utils.get(ctx.guild.roles, name=role_name)
+        if not role:
+            return await ctx.send(f"❌ Роль **{role_name}** не найдена на сервере.", delete_after=3)
+        
+        await self.bot.db.execute(
+            "INSERT OR REPLACE INTO guild_settings (guild_id, key, value) VALUES (?, 'staff_role', ?)",
+            ctx.guild.id, role_name
+        )
+        await ctx.send(f"✅ Роль для стажеров установлена: **{role_name}**", delete_after=3)
+
+    @commands.hybrid_command(name="reloadstaff", aliases=["перезагрузитьнабор"], description="Перезагрузить меню набора (если бот перезапустился)")
+    async def reload_staff(self, ctx: commands.Context):
+        await ctx.message.delete()
+
+        if not ctx.author.guild_permissions.administrator:
+            return await ctx.send(embed=discord.Embed(title="⛔ НЕДОСТАТОЧНО ПРАВ", color=discord.Color.red()), delete_after=3)
+        
+        row = await self.bot.db.fetchone("SELECT value FROM guild_settings WHERE guild_id = ? AND key = 'apply_channel'", ctx.guild.id)
+        if not row:
+            return await ctx.send("❌ Канал набора не найден в БД. Используйте !staffsetup.", delete_after=3)
+        
+        channel = ctx.guild.get_channel(int(row["value"]))
+        if not channel:
+            return await ctx.send("❌ Канал набора не найден на сервере.", delete_after=3)
+
+        async for msg in channel.history(limit=20):
+            if msg.author == self.bot.user and msg.components:
+                try:
+                    await msg.delete()
+                except:
+                    pass
+
+        embed = discord.Embed(
+            title="**Набор в персонал сервера Horizon Clan!**", 
+            description=(
+                "> Ты **проводишь много времени** на нашем сервере и хочешь стать частью "
+                "**элитной команды**? Это твой шанс!\n\n"
+                "**⚔️ Выбери желаемую должность** из списка ниже и **заполни анкету**.\n"
+                "Мы внимательно рассмотрим твою заявку и свяжемся с тобой!"
+            ),
+            color=0x2b2d31 
+        )
+        
+        banner_file = await self.create_wide_banner(ctx.guild)
+        if banner_file:
+            embed.set_image(url="attachment://banner.png")
+        
+        bot_image = str(self.bot.user.display_avatar.url) if self.bot.user and self.bot.user.display_avatar else None
+        embed.set_footer(text="Horizon Clan • Набор в Staff", icon_url=bot_image)
+        
+        if banner_file:
+            await channel.send(embed=embed, view=StaffApplicationView(self.bot), file=banner_file)
+        else:
+            await channel.send(embed=embed, view=StaffApplicationView(self.bot))
+
+        await ctx.send("✅ Меню набора успешно перезагружено!", delete_after=3)
+
+    @commands.hybrid_command(name="stopstaff", aliases=["закрытьнабор"], description="Закрыть набор (меню пропадает)")
+    async def stop_staff(self, ctx: commands.Context):
+        await ctx.message.delete()
+
+        if not ctx.author.guild_permissions.administrator:
+            return await ctx.send(embed=discord.Embed(title="⛔ НЕДОСТАТОЧНО ПРАВ", color=discord.Color.red()), delete_after=3)
+        
+        await self.bot.db.execute(
+            "INSERT OR REPLACE INTO guild_settings (guild_id, key, value) VALUES (?, 'staff_status', 'stopped')",
+            ctx.guild.id
+        )
+        
+        row = await self.bot.db.fetchone("SELECT value FROM guild_settings WHERE guild_id = ? AND key = 'apply_channel'", ctx.guild.id)
+        if row:
+            channel = ctx.guild.get_channel(int(row["value"]))
+            if channel:
+                async for msg in channel.history(limit=10):
+                    if msg.author == self.bot.user and msg.components:
+                        try:
+                            await msg.delete()
+                        except:
+                            pass
+        
+        await ctx.send("⛔ **Набор в штат официально остановлен!** Меню выбора убрано.", delete_after=3)
+
+    @commands.hybrid_command(name="activestaff", aliases=["открытьнабор"], description="Открыть набор заново с пингом @everyone")
+    async def active_staff(self, ctx: commands.Context):
+        await ctx.message.delete()
+
+        if not ctx.author.guild_permissions.administrator:
+            return await ctx.send(embed=discord.Embed(title="⛔ НЕДОСТАТОЧНО ПРАВ", color=discord.Color.red()), delete_after=3)
+        
+        await self.bot.db.execute(
+            "INSERT OR REPLACE INTO guild_settings (guild_id, key, value) VALUES (?, 'staff_status', 'active')",
+            ctx.guild.id
+        )
+        
+        row = await self.bot.db.fetchone("SELECT value FROM guild_settings WHERE guild_id = ? AND key = 'apply_channel'", ctx.guild.id)
+        if not row:
+            return await ctx.send("❌ Канал набора не найден.", delete_after=3)
+        
+        channel = ctx.guild.get_channel(int(row["value"]))
+        if not channel:
+            return await ctx.send("❌ Канал не найден.", delete_after=3)
+
+        async for msg in channel.history(limit=20):
+            if msg.author == self.bot.user and msg.components:
+                try:
+                    await msg.delete()
+                except:
+                    pass
+
+        embed = discord.Embed(
+            title="**Набор в персонал сервера Horizon Clan!**", 
+            description=(
+                "> Ты **проводишь много времени** на нашем сервере и хочешь стать частью "
+                "**элитной команды**? Это твой шанс!\n\n"
+                "**⚔️ Выбери желаемую должность** из списка ниже и **заполни анкету**.\n"
+                "Мы внимательно рассмотрим твою заявку и свяжемся с тобой!"
+            ),
+            color=0x2b2d31 
+        )
+        
+        banner_file = await self.create_wide_banner(ctx.guild)
+        if banner_file:
+            embed.set_image(url="attachment://banner.png")
+        
+        bot_image = str(self.bot.user.display_avatar.url) if self.bot.user and self.bot.user.display_avatar else None
+        embed.set_footer(text="Horizon Clan • Набор в Staff", icon_url=bot_image)
+        
+        if banner_file:
+            await channel.send(embed=embed, view=StaffApplicationView(self.bot), file=banner_file)
+        else:
+            await channel.send(embed=embed, view=StaffApplicationView(self.bot))
+
+        ping_msg = await ctx.send(f"@everyone **⚔️ Набор в штат Horizon Clan снова открыт!**\nПерейдите в {channel.mention} и подайте заявку!\n*(Сообщение удалится через 10 секунд)*")
+        await asyncio.sleep(10)
+        try:
+            await ping_msg.delete()
+        except:
+            pass
+
+    @commands.hybrid_command(name="staffreset", aliases=["сбросштата"], description="Убрать пользователя из штата для тестирования")
+    async def staff_reset(self, ctx: commands.Context, member: discord.Member):
+        await ctx.message.delete()
+
+        if not ctx.author.guild_permissions.administrator:
+            return await ctx.send(embed=discord.Embed(title="⛔ НЕДОСТАТОЧНО ПРАВ", color=discord.Color.red()), delete_after=3)
+        
+        existing = await self.bot.db.fetchone("SELECT * FROM staff_members WHERE guild_id = ? AND user_id = ? AND is_active = 1", ctx.guild.id, member.id)
+        if not existing:
+            return await ctx.send("❌ Этот пользователь не состоит в штате.", delete_after=3)
+
+        await self.bot.db.execute(
+            "UPDATE staff_members SET is_active = 0 WHERE guild_id = ? AND user_id = ?",
+            ctx.guild.id, member.id
+        )
+        await ctx.send(f"✅ Пользователь {member.mention} успешно убран из штата. Теперь он может заново пройти тест!", delete_after=3)
+
+    @commands.hybrid_command(name="staffclear", aliases=["очиститьнабор"], description="Полностью удалить категорию и каналы набора")
+    async def staff_clear(self, ctx: commands.Context):
+        await ctx.message.delete()
+
+        if not ctx.author.guild_permissions.administrator:
+            return await ctx.send(embed=discord.Embed(title="⛔ НЕДОСТАТОЧНО ПРАВ", color=discord.Color.red()), delete_after=3)
+        
+        # Находим категорию
+        category = discord.utils.get(ctx.guild.categories, name=self.staff_category_name)
+        
+        if not category:
+            return await ctx.send("❌ Категория набора не найдена. Нечего удалять.", delete_after=3)
+        
+        # Удаляем все каналы внутри категории
+        deleted_channels = 0
+        for channel in category.channels:
+            try:
+                await channel.delete()
+                deleted_channels += 1
+                await asyncio.sleep(0.5) # Небольшая задержка, чтобы не перегрузить Discord
+            except:
+                pass
+        
+        # Удаляем саму категорию
+        try:
+            await category.delete()
+        except:
+            pass
+        
+        await ctx.send(f"✅ Категория и **{deleted_channels}** каналов успешно удалены! Теперь создаю новый набор...", delete_after=5)
+        
+        # Автоматически запускаем создание новой структуры
+        await self.staff_setup(ctx)
+
+    # ==========================================
+    # ДОБАВЛЕННЫЙ МЕТОД ДЛЯ АВТО-ВОССТАНОВЛЕНИЯ (БЕЗ ФЕЙКОВЫХ КОНТЕКСТОВ)
+    # ==========================================
+    async def reload_staff_logic(self, guild: discord.Guild):
+        """Выполняет логику !reloadstaff без создания фейкового контекста (для автозапуска)."""
+        row = await self.bot.db.fetchone("SELECT value FROM guild_settings WHERE guild_id = ? AND key = 'apply_channel'", guild.id)
+        if not row:
+            logger.warning(f"Штат: канал apply_channel не найден для {guild.name}")
+            return
+
+        channel = guild.get_channel(int(row["value"]))
+        if not channel:
+            logger.warning(f"Штат: канал не найден на сервере {guild.name}")
+            return
+
+        async for msg in channel.history(limit=20):
+            if msg.author == self.bot.user and msg.components:
+                try:
+                    await msg.delete()
+                except:
+                    pass
+
+        embed = discord.Embed(
+            title="**Набор в персонал сервера Horizon Clan!**", 
+            description=(
+                "> Ты **проводишь много времени** на нашем сервере и хочешь стать частью "
+                "**элитной команды**? Это твой шанс!\n\n"
+                "**⚔️ Выбери желаемую должность** из списка ниже и **заполни анкету**.\n"
+                "Мы внимательно рассмотрим твою заявку и свяжемся с тобой!"
+            ),
+            color=0x2b2d31 
+        )
+        
+        banner_file = await self.create_wide_banner(guild)
+        if banner_file:
+            embed.set_image(url="attachment://banner.png")
+        
+        bot_image = str(self.bot.user.display_avatar.url) if self.bot.user and self.bot.user.display_avatar else None
+        embed.set_footer(text="Horizon Clan • Набор в Staff", icon_url=bot_image)
+        
+        from .staff import StaffApplicationView
+        
+        if banner_file:
+            await channel.send(embed=embed, view=StaffApplicationView(self.bot), file=banner_file)
+        else:
+            await channel.send(embed=embed, view=StaffApplicationView(self.bot))
+        
+        logger.info(f"Штат восстановлен на {guild.name}")
+
+    async def get_or_create_structure(self, guild: discord.Guild):
+        category = discord.utils.get(guild.categories, name=self.staff_category_name)
+        if not category:
+            category = await guild.create_category(self.staff_category_name)
+            
+        channels = {}
+        
+        apply = discord.utils.get(category.channels, name="༺𓆩《📋》・подача-заявок")
+        if not apply:
+            apply = await guild.create_text_channel("༺𓆩《📋》・подача-заявок", category=category)
+        channels['apply'] = apply.id
+        
+        private = discord.utils.get(category.channels, name="༺𓆩《🔒》・приват-заявок")
+        if not private:
+            overwrites = {guild.default_role: discord.PermissionOverwrite(read_messages=False), guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
+            for member in guild.members:
+                if member.guild_permissions.administrator or member == guild.owner:
+                    overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            private = await guild.create_text_channel("༺𓆩《🔒》・приват-заявок", category=category, overwrites=overwrites)
+        channels['private'] = private.id
+        
+        await self.bot.db.execute("INSERT OR REPLACE INTO guild_settings (guild_id, key, value) VALUES (?, 'apply_channel', ?)", guild.id, channels['apply'])
+        await self.bot.db.execute("INSERT OR REPLACE INTO guild_settings (guild_id, key, value) VALUES (?, 'private_applications', ?)", guild.id, channels['private'])
+        return channels
+
+    @commands.hybrid_command(name="staffsetup", aliases=["набор", "штатнабор"], description="Создать набор в штат")
+    async def staff_setup(self, ctx: commands.Context):
+        await ctx.message.delete()
+
+        if not ctx.author.guild_permissions.administrator:
+            return await ctx.send(embed=discord.Embed(title="⛔ НЕДОСТАТОЧНО ПРАВ", color=discord.Color.red()), delete_after=3)
+        
+        channels = await self.get_or_create_structure(ctx.guild)
+        banner_file = await self.create_wide_banner(ctx.guild)
+        
+        embed = discord.Embed(
+            title="**Набор в персонал сервера Horizon Clan!**", 
+            description=(
+                "> Ты **проводишь много времени** на нашем сервере и хочешь стать частью "
+                "**элитной команды**? Это твой шанс!\n\n"
+                "**⚔️ Выбери желаемую должность** из списка ниже и **заполни анкету**.\n"
+                "Мы внимательно рассмотрим твою заявку и свяжемся с тобой!"
+            ),
+            color=0x2b2d31 
+        )
+        
+        if banner_file:
+            embed.set_image(url="attachment://banner.png")
+        
+        bot_image = str(self.bot.user.display_avatar.url) if self.bot.user and self.bot.user.display_avatar else None
+        embed.set_footer(text="Horizon Clan • Набор в Staff", icon_url=bot_image)
+        
+        apply_channel = ctx.guild.get_channel(channels['apply'])
+        if apply_channel:
+            if banner_file:
+                await apply_channel.send(embed=embed, view=StaffApplicationView(self.bot), file=banner_file)
+            else:
+                await apply_channel.send(embed=embed, view=StaffApplicationView(self.bot))
+            await ctx.send(f"✅ Набор настроен! Перейдите в {apply_channel.mention}", delete_after=5)
+        await ctx.message.delete()
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Staff(bot))
