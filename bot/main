@@ -1,0 +1,43 @@
+import asyncio
+import time
+from datetime import datetime
+import signal
+import sys
+from .core.bot import Bot
+from .core.logger import logger
+from .core.config import DISCORD_TOKEN
+
+async def main():
+    start_time = time.time()
+    
+    print()
+    print("  ┌─────────────────────────────────────────────┐")
+    print("  │  HORIZON BOT v1.0.0                        │")
+    print(f"  │  Запуск: {datetime.now().strftime('%H:%M:%S')}                         │")
+    print("  │  Создатель: 3lotex                         │")
+    print("  └─────────────────────────────────────────────┘")
+    print()
+    
+    bot = Bot()
+    
+    try:
+        async with bot:
+            await bot.start(DISCORD_TOKEN)
+    except KeyboardInterrupt:
+        print("\n  Бот остановлен пользователем")
+    except asyncio.CancelledError:
+        print("\n  Бот остановлен")
+    except Exception as e:
+        print(f"\n  Ошибка: {e}")
+        logger.error(f"Fatal error: {e}", exc_info=True)
+    finally:
+        elapsed = time.time() - start_time
+        print(f"\n  Бот работал: {elapsed:.2f} секунд")
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n  Прервано пользователем")
+    except SystemExit:
+        pass
