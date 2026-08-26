@@ -1,0 +1,218 @@
+import discord
+from discord.ext import commands
+from ..core.acl import has_staff_permission
+from ..core.logger import logger
+import asyncio
+
+class Moderation(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    @commands.command(name="ban")
+    @has_staff_permission()
+    async def ban(self, ctx: commands.Context, member: discord.Member, *, reason: str = "Нарушение правил"):
+        if member.id == ctx.author.id:
+            return await ctx.send("Нельзя забанить самого себя.")
+        if member.top_role >= ctx.author.top_role and ctx.author.guild.owner_id != ctx.author.id:
+            return await ctx.send("У вас недостаточно прав для бана этого пользователя.")
+
+        await member.ban(reason=reason)
+
+        await self.bot.event_bus.publish_event(
+            guild_id=ctx.guild.id,
+            log_type="moderation",
+            action="ban",
+            actor_id=ctx.author.id,
+            target_id=member.id,
+            source="manual",
+            details={"reason": reason}
+        )
+
+        embed = discord.Embed(
+            title="🔨 Бан",
+            description=f"{member.mention} был забанен.",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="Модератор", value=ctx.author.mention)
+        embed.add_field(name="Причина", value=reason)
+        await ctx.send(embed=embed)
+
+    @commands.command(name="unban")
+    @has_staff_permission()
+    async def unban(self, ctx: commands.Context, user_id: int, *, reason: str = "Снятие бана"):
+        try:
+            user = await self.bot.fetch_user(user_id)
+            await ctx.guild.unban(user, reason=reason)
+        except discord.NotFound:
+            return await ctx.send("Пользователь не найден в бане.")
+        except Exception as e:
+            logger.error(f"Unban error: {e}")
+            return await ctx.send("Не удалось разбанить пользователя.")
+
+        await self.bot.event_bus.publish_event(
+            guild_id=ctx.guild.id,
+            log_type="moderation",
+            action="unban",
+            actor_id=ctx.author.id,
+            target_id=user_id,
+            source="manual",
+            details={"reason": reason}
+        )
+
+        await ctx.send(f"✅ Пользователь `{user}` разбанен.")
+
+    @commands.command(name="kick")
+    @has_staff_permission()
+    async def kick(self, ctx: commands.Context, member: discord.Member, *, reason: str = "Нарушение правил"):
+        if member.id == ctx.author.id:
+            return await ctx.send("Нельзя кикнуть самого себя.")
+        if member.top_role >= ctx.author.top_role and ctx.author.guild.owner_id != ctx.author.id:
+            return await ctx.send("У вас недостаточно прав для кика этого пользователя.")
+
+        await member.kick(reason=reason)
+
+        await self.bot.event_bus.publish_event(
+            guild_id=ctx.guild.id,
+            log_type="moderation",
+            action="kick",
+            actor_id=ctx.author.id,
+            target_id=member.id,
+            source="manual",
+            details={"reason": reason}
+        )
+
+        embed = discord.Embed(
+            title="👢 Кик",
+            description=f"{member.mention} был выгнан.",
+            color=discord.Color.orange()
+        )
+        embed.add_field(name="Модератор", value=ctx.author.mention)
+        embed.add_field(name="Причина", value=reason)
+        await ctx.send(embed=embed)
+
+    @commands.command(name="mute")
+    @has_staff_permission()
+    async def mute(self, ctx: commands.Context, member: discord.Member, duration_minutes: int = 60, *, reason: str = "Нарушение правил"):
+        if member.id == ctx.author.id:
+            return await ctx.send("Нельзя замутить самого себя.")
+        if member.top_role >= ctx.author.top_role and ctx.author.guild.owner_id != ctx.author.id:
+            return await ctx.send("У вас недостаточно прав для мута этого пользователя.")
+
+        muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
+        if not muted_role:
+            try:
+                muted_role = await ctx.guild.create_role(name="Muted", reason="Для мута")
+                for channel in ctx.guild.channels:
+                    await channel.set_permissions(muted_role, send_messages=False, speak=False)
+            except Exception as e:
+                logger.error(f"Failed to create Muted role: {e}")
+                return await ctx.send("Не удалось создать роль Muted.")
+
+        await member.add_roles(muted_role, reason=reason)
+
+        await self.bot.event_bus.publish_event(
+            guild_id=ctx.guild.id,
+            log_type="moderation",
+            action="mute",
+            actor_id=ctx.author.id,
+            target_id=member.id,
+            source="manual",
+            details={"reason": reason, "duration_minutes": duration_minutes}
+        )
+
+        embed = discord.Embed(
+            title="🔇 Мут",
+            description=f"{member.mention} был замучен на {duration_minutes} минут.",
+            color=discord.Color.yellow()
+        )
+        embed.add_field(name="Модератор", value=ctx.author.mention)
+        embed.add_field(name="Причина", value=reason)
+        await ctx.send(embed=embed)
+
+        await asyncio.sleep(duration_minutes * 60)
+        if muted_role in member.roles:
+            await member.remove_roles(muted_role, reason="Время мута истекло")
+
+    @commands.command(name="unmute")
+    @has_staff_permission()
+    async def unmute(self, ctx: commands.Context, member: discord.Member):
+        muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
+        if not muted_role or muted_role not in member.roles:
+            return await ctx.send("Пользователь не замучен.")
+
+        await member.remove_roles(muted_role, reason="Снятие мута")
+
+        await self.bot.event_bus.publish_event(
+            guild_id=ctx.guild.id,
+            log_type="moderation",
+            action="unmute",
+            actor_id=ctx.author.id,
+            target_id=member.id,
+            source="manual",
+            details={}
+        )
+
+        await ctx.send(f"✅ {member.mention} размучен.")
+
+    @commands.command(name="clear")
+    @has_staff_permission()
+    async def clear(self, ctx: commands.Context, amount: int = 10):
+        if amount < 1 or amount > 100:
+            return await ctx.send("Укажите число от 1 до 100.")
+
+        deleted = await ctx.channel.purge(limit=amount)
+
+        await self.bot.event_bus.publish_event(
+            guild_id=ctx.guild.id,
+            log_type="moderation",
+            action="bulk_delete",
+            actor_id=ctx.author.id,
+            target_id=None,
+            source="manual",
+            details={"message_count": len(deleted), "channel_id": ctx.channel.id}
+        )
+
+        await ctx.send(f"🧹 Удалено {len(deleted)} сообщений.", delete_after=5)
+
+    @commands.command(name="warn")
+    @has_staff_permission()
+    async def warn(self, ctx: commands.Context, member: discord.Member, *, reason: str = "Предупреждение"):
+        await self.bot.db.execute(
+            "INSERT INTO warnings (guild_id, user_id, moderator_id, reason) VALUES (?, ?, ?, ?)",
+            ctx.guild.id, member.id, ctx.author.id, reason
+        )
+
+        await self.bot.event_bus.publish_event(
+            guild_id=ctx.guild.id,
+            log_type="moderation",
+            action="warn",
+            actor_id=ctx.author.id,
+            target_id=member.id,
+            source="manual",
+            details={"reason": reason}
+        )
+
+        await ctx.send(f"⚠️ {member.mention} получил предупреждение: {reason}")
+
+    @commands.command(name="warnings")
+    @has_staff_permission()
+    async def warnings(self, ctx: commands.Context, member: discord.Member):
+        rows = await self.bot.db.fetchall(
+            "SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY created_at DESC",
+            ctx.guild.id, member.id
+        )
+        if not rows:
+            return await ctx.send("У пользователя нет предупреждений.")
+
+        embed = discord.Embed(title=f"Предупреждения {member.display_name}", color=discord.Color.gold())
+        for row in rows[:10]:
+            moderator = ctx.guild.get_member(row["moderator_id"])
+            embed.add_field(
+                name=row["created_at"],
+                value=f"Модератор: {moderator.mention if moderator else row['moderator_id']}\nПричина: {row['reason']}",
+                inline=False
+            )
+        await ctx.send(embed=embed)
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Moderation(bot))
