@@ -1,0 +1,240 @@
+import discord
+from discord.ext import commands
+from typing import Optional
+
+# ==========================================
+# ДИНАМИЧЕСКОЕ МЕНЮ ДЛЯ ВЫБОРА КАТЕГОРИИ
+# ==========================================
+class HelpMenuView(discord.ui.View):
+    """Выпадающее меню. Категории создаются автоматически из загруженных когов."""
+    
+    def __init__(self, bot: commands.Bot):
+        super().__init__(timeout=None)
+        self.bot = bot
+        
+        # Автоматически собираем категории из загруженных когов
+        options = []
+        
+        # Словарь для сопоставления имени кога и его эмодзи/названия в меню
+        # Если ког не найден в этом словаре, он просто получит стандартное название
+        category_map = {
+            "Moderation": {"emoji": "🛡️", "label": "Модерация", "desc": "Управление сервером и наказания"},
+            "Tickets":    {"emoji": "🎫", "label": "Тикеты",    "desc": "Система обращений и жалоб"},
+            "Staff":      {"emoji": "👥", "label": "Штат",      "desc": "Управление персоналом сервера"},
+            "Logging":    {"emoji": "📊", "label": "Логирование","desc": "Система аудита событий"},
+            "Settings":   {"emoji": "⚙️", "label": "Настройки", "desc": "Конфигурация бота"},
+        }
+        
+        # Проходим по всем загруженным когам
+        for cog_name, cog in bot.cogs.items():
+            # Пропускаем ког Help, чтобы не было рекурсии
+            if cog_name == "Help":
+                continue
+                
+            # Проверяем, есть ли команды в этом коге
+            commands_in_cog = [cmd for cmd in bot.commands if cmd.cog and cmd.cog.qualified_name == cog_name]
+            if not commands_in_cog:
+                continue
+                
+            # Берём настройки из словаря или ставим дефолтные
+            info = category_map.get(cog_name, {"emoji": "📂", "label": cog_name, "desc": f"Команды модуля {cog_name}"})
+            
+            options.append(
+                discord.SelectOption(
+                    label=f"{info['emoji']} {info['label']}",
+                    value=cog_name, # В value сохраняем имя кога
+                    description=info['desc']
+                )
+            )
+        
+        # Добавляем опцию "Все команды" вручную
+        options.append(
+            discord.SelectOption(label="❓ Все команды", value="all_commands", description="Полный список всех команд")
+        )
+        
+        # Создаём селект
+        select = discord.ui.Select(
+            placeholder="📂 Выберите категорию команд...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+        select.callback = self.select_callback
+        self.add_item(select)
+    
+    async def select_callback(self, interaction: discord.Interaction):
+        # ОБЯЗАТЕЛЬНО: Сначала defer, чтобы избежать таймаута
+        await interaction.response.defer()
+        
+        # Получаем имя кога или специальное значение "all_commands"
+        category = interaction.data["values"][0]
+        await self.show_category(interaction, category)
+    
+    async def show_category(self, interaction: discord.Interaction, category: str):
+        bot = self.bot
+        bot_image = str(bot.user.display_avatar.url) if bot.user and bot.user.display_avatar else None
+        
+        # Если выбрана категория "Все команды"
+        if category == "all_commands":
+            embed = discord.Embed(
+                title="❓ ВСЕ КОМАНДЫ",
+                description="```ansi\n[1;32mПолный список всех команд бота, сгруппированный по модулям[0m\n```",
+                color=discord.Color.from_rgb(0, 255, 128)
+            )
+            
+            # Снова проходим по когам для вывода списка команд
+            for cog_name, cog in bot.cogs.items():
+                if cog_name == "Help":
+                    continue
+                    
+                commands_in_cog = [cmd for cmd in bot.commands if cmd.cog and cmd.cog.qualified_name == cog_name]
+                if not commands_in_cog:
+                    continue
+                    
+                # Собираем команды в строку
+                cmd_list = "```" + " • ".join([f"!{cmd.name}" for cmd in commands_in_cog]) + "```"
+                
+                # Берём эмодзи для красоты
+                info = {
+                    "Moderation": "🛡️", "Tickets": "🎫", "Staff": "👥", 
+                    "Logging": "📊", "Settings": "⚙️"
+                }.get(cog_name, "📂")
+                
+                embed.add_field(name=f"━" * 25, value=f"**{info} {cog_name}**", inline=False)
+                embed.add_field(name="Команды", value=cmd_list, inline=False)
+            
+            embed.set_footer(text="Horizon Bot • Все команды", icon_url=bot_image)
+            # Теперь используем edit_original_response, так как мы сделали defer
+            await interaction.edit_original_response(embed=embed, view=HelpMenuView(bot))
+            return
+
+        # Если выбрана конкретная категория (ког)
+        cog = bot.get_cog(category)
+        if not cog:
+            return await interaction.followup.send("❌ Эта категория не найдена.", ephemeral=True)
+            
+        # Получаем команды этого кога
+        cog_commands = [cmd for cmd in bot.commands if cmd.cog and cmd.cog.qualified_name == category]
+        
+        # Красивое название для эмбеда
+        emoji_map = {"Moderation": "🛡️", "Tickets": "🎫", "Staff": "👥", "Logging": "📊", "Settings": "⚙️"}
+        emoji = emoji_map.get(category, "📂")
+        
+        embed = discord.Embed(
+            title=f"{emoji} {category.upper()}",
+            description=f"```ansi\n[1;36mСписок команд модуля {category}[0m\n```",
+            color=discord.Color.blue()
+        )
+        
+        # Разбиваем команды по парам для красивого отображения (Inline=True)
+        # Используем поле "━" для разделителей
+        embed.add_field(name="━" * 25, value=f"**📋 ДОСТУПНЫЕ КОМАНДЫ ({len(cog_commands)})**", inline=False)
+        
+        for i in range(0, len(cog_commands), 2):
+            cmd1 = cog_commands[i]
+            # Форматируем синтаксис: если есть alias, показываем основной
+            cmd1_name = f"!{cmd1.name}"
+            
+            value1 = f"```{cmd1_name}```\n*{cmd1.description or 'Нет описания'}*"
+            
+            if i + 1 < len(cog_commands):
+                cmd2 = cog_commands[i + 1]
+                cmd2_name = f"!{cmd2.name}"
+                value2 = f"```{cmd2_name}```\n*{cmd2.description or 'Нет описания'}*"
+                embed.add_field(name=cmd1_name, value=value1, inline=True)
+                embed.add_field(name=cmd2_name, value=value2, inline=True)
+            else:
+                embed.add_field(name=cmd1_name, value=value1, inline=True)
+        
+        embed.set_footer(text=f"Horizon Bot • {category}", icon_url=bot_image)
+        # Используем edit_original_response вместо response.edit_message
+        await interaction.edit_original_response(embed=embed, view=HelpMenuView(bot))
+
+
+# ==========================================
+# ОСНОВНОЙ КОГ HELP
+# ==========================================
+class Help(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    @commands.hybrid_command(name="help", aliases=["хелп", "помощь"], description="Показать справку")
+    async def help_command(self, ctx: commands.Context):
+        """Показывает главное меню помощи с динамическими категориями."""
+        
+        # ==========================================
+        # ЗАЩИТА ОТ ТАЙМАУТА ДЛЯ СЛЭШ-КОМАНД
+        # ==========================================
+        if ctx.interaction:
+            await ctx.interaction.response.defer()
+
+        bot_image = str(self.bot.user.display_avatar.url) if self.bot.user and self.bot.user.display_avatar else None
+        
+        embed = discord.Embed(
+            title="🌌 HORIZON BOT",
+            description=(
+                "```ansi\n"
+                "[1;32mМногофункциональный Discord бот[0m\n"
+                "[1;37mСоздатель: 3lotex[0m\n"
+                "[1;37mВерсия: 1.0.0 (Stable)[0m\n"
+                "```"
+            ),
+            color=discord.Color.from_rgb(0, 255, 128)
+        )
+        
+        # Динамический вывод категорий в главное меню
+        category_field = ""
+        for cog_name in self.bot.cogs:
+            if cog_name == "Help":
+                continue
+            emoji_map = {"Moderation": "🛡️", "Tickets": "🎫", "Staff": "👥", "Logging": "📊", "Settings": "⚙️"}
+            emoji = emoji_map.get(cog_name, "📂")
+            category_field += f"{emoji} {cog_name} `!help {cog_name.lower()}`\n"
+        
+        embed.add_field(name="━" * 25, value="**📂 КАТЕГОРИИ**", inline=False)
+        embed.add_field(name="\u200b", value=category_field, inline=False)
+        
+        embed.add_field(name="━" * 25, value="**📌 ИНФОРМАЦИЯ**", inline=False)
+        embed.add_field(
+            name="Статистика",
+            value=(
+                f"**Серверов:** `{len(self.bot.guilds)}`\n"
+                f"**Пользователей:** `{sum(g.member_count for g in self.bot.guilds)}`\n"
+                f"**Задержка:** `{round(self.bot.latency * 1000)}мс`\n"
+                f"**Статус:** 🟢 Онлайн"
+            ),
+            inline=True
+        )
+        embed.add_field(
+            name="Система",
+            value=(
+                f"**База данных:** `SQLite`\n"
+                f"**Кэш:** `Redis`\n"
+                f"**Логи:** `Файлы`\n"
+                f"**Слэш-команды:** `Включены`"
+            ),
+            inline=True
+        )
+        
+        embed.add_field(name="━" * 25, value="**👇 ВЫБЕРИТЕ КАТЕГОРИЮ ИЗ МЕНЮ НИЖЕ**", inline=False)
+        
+        embed.set_footer(text="Horizon Bot • 3lotex", icon_url=bot_image)
+        if bot_image:
+            embed.set_thumbnail(url=bot_image)
+        
+        view = HelpMenuView(self.bot)
+        
+        # Если это слэш-команда — отправляем через followup
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed, view=view)
+        else:
+            await ctx.send(embed=embed, view=view)
+
+    @commands.hybrid_command(name="commands", aliases=["команды", "cmd"], description="Показать все команды")
+    async def commands_command(self, ctx: commands.Context):
+        """Показывает все команды через меню."""
+        # Просто вызываем ту же логику, что и в help
+        await self.help_command(ctx)
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Help(bot))
