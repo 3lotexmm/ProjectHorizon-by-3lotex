@@ -1,0 +1,99 @@
+import discord
+from discord.ext import commands
+from ..core.logger import logger
+
+class ErrorHandler(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):
+        """Глобальный обработчик ошибок."""
+        
+        # Игнорируем ошибки, которые уже обработаны
+        if hasattr(error, 'handled'):
+            return
+        
+        # Ошибка: недостаточно прав
+        if isinstance(error, commands.CheckFailure):
+            embed = discord.Embed(
+                title="⛔ **НЕДОСТАТОЧНО ПРАВ**",
+                description="```У вас нет прав для выполнения этой команды```",
+                color=discord.Color.red()
+            )
+            embed.add_field(
+                name="Требуется",
+                value="```Роль Staff или права владельца сервера```",
+                inline=False
+            )
+            embed.set_footer(text="Horizon Bot • Ошибка доступа")
+            await ctx.send(embed=embed, delete_after=10)
+            return
+        
+        # Ошибка: команда не найдена
+        if isinstance(error, commands.CommandNotFound):
+            embed = discord.Embed(
+                title="❓ **КОМАНДА НЕ НАЙДЕНА**",
+                description=f"```Команда '{ctx.message.content.split()[0]}' не существует```",
+                color=discord.Color.orange()
+            )
+            embed.add_field(
+                name="Подсказка",
+                value="```Используйте !help для списка команд```",
+                inline=False
+            )
+            await ctx.send(embed=embed, delete_after=10)
+            return
+        
+        # Ошибка: неверные аргументы
+        if isinstance(error, commands.MissingRequiredArgument):
+            embed = discord.Embed(
+                title="⚠️ **НЕВЕРНЫЕ АРГУМЕНТЫ**",
+                description=f"```Не хватает аргумента: {error.param.name}```",
+                color=discord.Color.yellow()
+            )
+            embed.add_field(
+                name="Правильное использование",
+                value=f"```!{ctx.command.name} {ctx.command.signature}```",
+                inline=False
+            )
+            await ctx.send(embed=embed, delete_after=15)
+            return
+        
+        # Ошибка: пользователь не найден
+        if isinstance(error, commands.MemberNotFound):
+            embed = discord.Embed(
+                title="❌ **ПОЛЬЗОВАТЕЛЬ НЕ НАЙДЕН**",
+                description="```Указанный пользователь не найден на сервере```",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed, delete_after=10)
+            return
+        
+        # Ошибка: бот не имеет прав
+        if isinstance(error, commands.BotMissingPermissions):
+            missing = ", ".join(error.missing_permissions)
+            embed = discord.Embed(
+                title="🤖 **БОТ НЕ ИМЕЕТ ПРАВ**",
+                description=f"```Боту не хватает прав: {missing}```",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed, delete_after=10)
+            return
+        
+        # Другие ошибки
+        logger.error(f"Command error: {error}", exc_info=True)
+        embed = discord.Embed(
+            title="💥 **ОШИБКА**",
+            description="```Произошла непредвиденная ошибка```",
+            color=discord.Color.dark_red()
+        )
+        embed.add_field(
+            name="Детали",
+            value=f"```{str(error)[:200]}```",
+            inline=False
+        )
+        await ctx.send(embed=embed, delete_after=15)
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(ErrorHandler(bot))
