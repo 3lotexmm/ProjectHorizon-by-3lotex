@@ -1,0 +1,498 @@
+2026-08-14 00:51:15,811 | ERROR    | discord | Fatal error: Extension 'bot.cogs.help' raised an error: CommandRegistrationError: The command help is already an existing command or alias.
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 963, in _load_from_module_spec
+    await setup(self)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\help.py", line 243, in setup
+    await bot.add_cog(Help(bot))
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 799, in add_cog
+    cog = await cog._inject(self, override=override, guild=guild, guilds=guilds)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\cog.py", line 725, in _inject
+    raise e
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\cog.py", line 716, in _inject
+    bot.add_command(command)
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 253, in add_command
+    super().add_command(command)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\core.py", line 1356, in add_command
+    raise CommandRegistrationError(command.name)
+discord.ext.commands.errors.CommandRegistrationError: The command help is already an existing command or alias.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\ProjectHorizon-by-3lotex\bot\main.py", line 25, in main
+    await bot.start(DISCORD_TOKEN)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 786, in start
+    await self.login(token)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 629, in login
+    await self.setup_hook()
+  File "D:\ProjectHorizon-by-3lotex\bot\core\bot.py", line 68, in setup_hook
+    await self.load_extension('bot.cogs.help')
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1029, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 968, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'bot.cogs.help' raised an error: CommandRegistrationError: The command help is already an existing command or alias.
+2026-08-14 00:55:55,143 | ERROR    | discord.ext.commands.bot | Ignoring exception in command staffadd
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1366, in invoke
+    await ctx.command.invoke(ctx)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\core.py", line 1021, in invoke
+    await self.prepare(ctx)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\core.py", line 926, in prepare
+    raise CheckFailure(f'The check functions for command {self.qualified_name} failed.')
+discord.ext.commands.errors.CheckFailure: The check functions for command staffadd failed.
+2026-08-14 02:57:40,648 | ERROR    | discord | Fatal error: no such column: application_number
+Traceback (most recent call last):
+  File "D:\ProjectHorizon-by-3lotex\bot\main.py", line 25, in main
+    await bot.start(DISCORD_TOKEN)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 786, in start
+    await self.login(token)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 629, in login
+    await self.setup_hook()
+  File "D:\ProjectHorizon-by-3lotex\bot\core\bot.py", line 66, in setup_hook
+    await self.db.connect()
+  File "D:\ProjectHorizon-by-3lotex\bot\services\database.py", line 13, in connect
+    await self._create_tables()
+  File "D:\ProjectHorizon-by-3lotex\bot\services\database.py", line 17, in _create_tables
+    await self.db.executescript("""
+    ...<80 lines>...
+    """)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 255, in executescript
+    cursor = await self._execute(self._conn.executescript, sql_script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 160, in _execute
+    return await future
+           ^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 63, in _connection_worker_thread
+    result = function()
+sqlite3.OperationalError: no such column: application_number
+2026-08-14 03:01:42,466 | ERROR    | discord | Fatal error: no such column: application_number
+Traceback (most recent call last):
+  File "D:\ProjectHorizon-by-3lotex\bot\main.py", line 25, in main
+    await bot.start(DISCORD_TOKEN)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 786, in start
+    await self.login(token)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 629, in login
+    await self.setup_hook()
+  File "D:\ProjectHorizon-by-3lotex\bot\core\bot.py", line 66, in setup_hook
+    await self.db.connect()
+  File "D:\ProjectHorizon-by-3lotex\bot\services\database.py", line 13, in connect
+    await self._create_tables()
+  File "D:\ProjectHorizon-by-3lotex\bot\services\database.py", line 17, in _create_tables
+    await self.db.executescript("""
+    ...<80 lines>...
+    """)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 255, in executescript
+    cursor = await self._execute(self._conn.executescript, sql_script)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 160, in _execute
+    return await future
+           ^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 63, in _connection_worker_thread
+    result = function()
+sqlite3.OperationalError: no such column: application_number
+2026-08-14 03:22:06,246 | ERROR    | discord | Fatal error: Extension 'bot.cogs.staff' has no 'setup' function.
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 957, in _load_from_module_spec
+    setup = getattr(lib, 'setup')
+AttributeError: module 'bot.cogs.staff' has no attribute 'setup'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\ProjectHorizon-by-3lotex\bot\main.py", line 25, in main
+    await bot.start(DISCORD_TOKEN)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 786, in start
+    await self.login(token)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 629, in login
+    await self.setup_hook()
+  File "D:\ProjectHorizon-by-3lotex\bot\core\bot.py", line 70, in setup_hook
+    await self.load_extension('bot.cogs.staff')
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1029, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 960, in _load_from_module_spec
+    raise errors.NoEntryPointError(key)
+discord.ext.commands.errors.NoEntryPointError: Extension 'bot.cogs.staff' has no 'setup' function.
+2026-08-14 03:26:10,800 | ERROR    | discord | Ошибка при создании баннера: images do not match
+2026-08-14 04:42:35,969 | ERROR    | discord.ui.view | Ignoring exception in view <TicketCreateView timeout=None children=1> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='Создать тикет' emoji=<PartialEmoji animated=False name='🎫' id=None> row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 92, in create_ticket
+    ctx = await self.bot.get_context(fake_msg)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1300, in get_context
+    ctx = cls(prefix=None, view=view, bot=self, message=origin)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\context.py", line 211, in __init__
+    self._state: ConnectionState = self.message._state
+                                   ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Object' object has no attribute '_state'
+2026-08-14 04:45:04,221 | ERROR    | discord.ui.view | Ignoring exception in view <StaffPrivateVerdictView timeout=None children=2> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='✅ Одобрить' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 148, in accept_button
+    await self.create_internship_tribunes(interaction.guild, member, self.role_name, interaction.user)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 185, in create_internship_tribunes
+    stage_channel = await guild.create_stage_channel(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=f"🎙・трибуна-{member.name}",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        topic=f"Сцена для собеседования и голосования по стажировке {member.name}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+TypeError: Guild.create_stage_channel() got an unexpected keyword argument 'topic'
+2026-08-14 05:10:52,496 | ERROR    | discord.ui.view | Ignoring exception in view <StaffPrivateVerdictView timeout=None children=2> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='✅ Одобрить' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 127, in accept_button
+    await self.bot.db.execute("INSERT INTO staff_members (guild_id, user_id, role, added_by) VALUES (?, ?, ?, ?)", interaction.guild.id, row["user_id"], row["role"], interaction.user.id)
+  File "D:\ProjectHorizon-by-3lotex\bot\services\database.py", line 140, in execute
+    await self.db.execute(query, params)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 223, in execute
+    cursor = await self._execute(self._conn.execute, sql, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 160, in _execute
+    return await future
+           ^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 63, in _connection_worker_thread
+    result = function()
+sqlite3.IntegrityError: UNIQUE constraint failed: staff_members.guild_id, staff_members.user_id
+2026-08-14 05:11:09,778 | ERROR    | discord.ui.view | Ignoring exception in view <StaffPrivateVerdictView timeout=None children=2> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='✅ Одобрить' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 127, in accept_button
+    await self.bot.db.execute("INSERT INTO staff_members (guild_id, user_id, role, added_by) VALUES (?, ?, ?, ?)", interaction.guild.id, row["user_id"], row["role"], interaction.user.id)
+  File "D:\ProjectHorizon-by-3lotex\bot\services\database.py", line 140, in execute
+    await self.db.execute(query, params)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 223, in execute
+    cursor = await self._execute(self._conn.execute, sql, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 160, in _execute
+    return await future
+           ^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py", line 63, in _connection_worker_thread
+    result = function()
+sqlite3.IntegrityError: UNIQUE constraint failed: staff_members.guild_id, staff_members.user_id
+2026-08-14 05:25:30,242 | ERROR    | discord | Не удалось загрузить баннер! Статус: 429
+2026-08-14 05:33:33,853 | ERROR    | discord.ui.modal | Ignoring exception in modal <StaffPrivateRejectModal timeout=None children=1>:
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\modal.py", line 189, in _scheduled_task
+    await self.on_submit(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 263, in on_submit
+    await self.send_public_verdict(interaction, False, self.reason.value)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 302, in send_public_verdict
+    await channel.send(embed=embed, ephemeral=True)
+          ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Messageable.send() got an unexpected keyword argument 'ephemeral'
+2026-08-14 05:34:36,386 | ERROR    | discord.ui.modal | Ignoring exception in modal <StaffPrivateRejectModal timeout=None children=1>:
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\modal.py", line 189, in _scheduled_task
+    await self.on_submit(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 263, in on_submit
+    await self.send_public_verdict(interaction, False, self.reason.value)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 302, in send_public_verdict
+    await channel.send(embed=embed, ephemeral=True)
+          ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Messageable.send() got an unexpected keyword argument 'ephemeral'
+2026-08-14 06:20:47,097 | ERROR    | discord.ui.view | Ignoring exception in view <StaffPrivateVerdictView timeout=None children=2> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='✅ Одобрить' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 141, in accept_button
+    await self.send_public_verdict(interaction, True, None)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 247, in send_public_verdict
+    await channel.send(embed=embed, ephemeral=True)
+          ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Messageable.send() got an unexpected keyword argument 'ephemeral'
+2026-08-14 06:23:25,134 | ERROR    | discord.ui.view | Ignoring exception in view <StaffPrivateVerdictView timeout=None children=2> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='✅ Одобрить' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 151, in accept_button
+    await self.create_internship_tribunes(interaction.guild, member, self.role_name)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 191, in create_internship_tribunes
+    stage_channel = await guild.create_stage_channel(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=f"🎙・трибуна-{member.name}",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        topic=f"Сцена для собеседования {member.name}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+TypeError: Guild.create_stage_channel() got an unexpected keyword argument 'topic'
+2026-08-14 06:33:32,775 | ERROR    | discord.ui.view | Ignoring exception in view <StaffPrivateVerdictView timeout=None children=2> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='✅ Одобрить' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 160, in accept_button
+    msg = await interaction.response.send_message("✅ Заявка одобрена! Роль выдана. Каналы созданы.", ephemeral=False)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\interactions.py", line 855, in send_message
+    await adapter.create_interaction_response(
+    ...<6 lines>...
+    )
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\webhook\async_.py", line 221, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2026-08-14 06:35:13,915 | ERROR    | discord.ui.modal | Ignoring exception in modal <StaffPrivateRejectModal timeout=None children=1>:
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\modal.py", line 189, in _scheduled_task
+    await self.on_submit(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 292, in on_submit
+    await msg.delete()
+          ^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'delete'
+2026-08-14 06:36:08,281 | ERROR    | discord.ui.view | Ignoring exception in view <StaffPrivateVerdictView timeout=None children=2> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='✅ Одобрить' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 162, in accept_button
+    await msg.delete()
+          ^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'delete'
+2026-08-14 06:45:06,694 | ERROR    | discord.ui.view | Ignoring exception in view <StaffPrivateVerdictView timeout=None children=1> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='✅ Одобрить' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 148, in accept_button
+    await self.send_public_verdict(interaction, True, None)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 234, in send_public_verdict
+    f"Вам была выдана роль **{internship_role_name}**. Пройдите в канал `🗣・собеседование` в категории `Набор в штат` для продолжения."
+                              ^^^^^^^^^^^^^^^^^^^^
+NameError: name 'internship_role_name' is not defined
+2026-08-14 06:51:54,278 | ERROR    | discord.ui.view | Ignoring exception in view <StaffPrivateVerdictView timeout=None children=2> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='✅ Одобрить' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 180, in accept_button
+    await interaction.response.defer()
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\interactions.py", line 709, in defer
+    await adapter.create_interaction_response(
+    ...<6 lines>...
+    )
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\webhook\async_.py", line 221, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2026-08-14 15:53:30,116 | ERROR    | discord | Command error: Hybrid command raised an error: Command 'staffsetup' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+NoneType: None
+2026-08-14 15:53:30,344 | ERROR    | discord.client | Ignoring exception in on_command_error
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 449, in _run_event
+    await coro(*args, **kwargs)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\error_handler.py", line 96, in on_command_error
+    await ctx.send(embed=embed, delete_after=15)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\context.py", line 1077, in send
+    await self.interaction.response.send_message(**kwargs)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\interactions.py", line 855, in send_message
+    await adapter.create_interaction_response(
+    ...<6 lines>...
+    )
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\webhook\async_.py", line 221, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2026-08-14 15:54:31,729 | ERROR    | discord.ui.view | Ignoring exception in view <StaffApplicationView timeout=None children=1> for item <Select placeholder='📋 Выберите желаемую должность' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 54, in select_callback
+    await interaction.followup.send_modal(StaffApplicationModal(self.bot, role, role_name))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Webhook' object has no attribute 'send_modal'
+2026-08-14 15:54:44,865 | ERROR    | discord.ui.view | Ignoring exception in view <StaffApplicationView timeout=None children=1> for item <Select placeholder='📋 Выберите желаемую должность' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 54, in select_callback
+    await interaction.followup.send_modal(StaffApplicationModal(self.bot, role, role_name))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Webhook' object has no attribute 'send_modal'
+2026-08-14 15:55:19,897 | ERROR    | discord.ui.view | Ignoring exception in view <StaffApplicationView timeout=None children=1> for item <Select placeholder='📋 Выберите желаемую должность' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 54, in select_callback
+    await interaction.followup.send_modal(StaffApplicationModal(self.bot, role, role_name))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Webhook' object has no attribute 'send_modal'
+2026-08-14 15:55:26,724 | ERROR    | discord.ui.view | Ignoring exception in view <StaffApplicationView timeout=None children=1> for item <Select placeholder='📋 Выберите желаемую должность' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 54, in select_callback
+    await interaction.followup.send_modal(StaffApplicationModal(self.bot, role, role_name))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Webhook' object has no attribute 'send_modal'
+2026-08-14 15:56:12,917 | ERROR    | discord.ui.view | Ignoring exception in view <StaffApplicationView timeout=None children=1> for item <Select placeholder='📋 Выберите желаемую должность' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 54, in select_callback
+    await interaction.followup.send_modal(StaffApplicationModal(self.bot, role, role_name))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Webhook' object has no attribute 'send_modal'
+2026-08-14 15:56:22,043 | ERROR    | discord.ui.view | Ignoring exception in view <StaffApplicationView timeout=None children=1> for item <Select placeholder='📋 Выберите желаемую должность' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 54, in select_callback
+    await interaction.followup.send_modal(StaffApplicationModal(self.bot, role, role_name))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Webhook' object has no attribute 'send_modal'
+2026-08-14 15:56:39,679 | ERROR    | discord.ui.view | Ignoring exception in view <StaffApplicationView timeout=None children=1> for item <Select placeholder='📋 Выберите желаемую должность' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\staff.py", line 54, in select_callback
+    await interaction.followup.send_modal(StaffApplicationModal(self.bot, role, role_name))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Webhook' object has no attribute 'send_modal'
+2026-08-14 16:45:13,813 | ERROR    | discord | Command error: Command raised an exception: NotFound: 404 Not Found (error code: 10008): Unknown Message
+NoneType: None
+2026-08-17 00:45:23,404 | ERROR    | discord.ui.view | Ignoring exception in view <TicketCreateView timeout=None children=1> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='🎫 Создать тикет' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 423, in create_ticket
+    ctx = await self.bot.get_context(fake_msg)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1300, in get_context
+    ctx = cls(prefix=None, view=view, bot=self, message=origin)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\context.py", line 211, in __init__
+    self._state: ConnectionState = self.message._state
+                                   ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Object' object has no attribute '_state'
+2026-08-17 00:45:28,299 | ERROR    | discord.ui.view | Ignoring exception in view <TicketCreateView timeout=None children=1> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='🎫 Создать тикет' emoji=None row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 423, in create_ticket
+    ctx = await self.bot.get_context(fake_msg)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1300, in get_context
+    ctx = cls(prefix=None, view=view, bot=self, message=origin)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\context.py", line 211, in __init__
+    self._state: ConnectionState = self.message._state
+                                   ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Object' object has no attribute '_state'
+2026-08-17 01:28:17,557 | ERROR    | discord.ui.view | Ignoring exception in view <TicketSelectView timeout=None children=1> for item <Select placeholder='📂 Выберите тему обращения...' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 56, in select_callback
+    fake_ctx = FakeContext()
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 48, in __init__
+    self.bot = self.bot
+               ^^^^^^^^
+AttributeError: 'FakeContext' object has no attribute 'bot'
+2026-08-17 01:50:48,909 | ERROR    | discord | Fatal error: Extension 'bot.cogs.tickets' raised an error: NameError: name 'self' is not defined
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 951, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
+  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 85, in <module>
+    class TicketControlView(discord.ui.View):
+    ...<33 lines>...
+            )
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 91, in TicketControlView
+    @discord.ui.button(label=f"{self.emojis.load('close')} Закрыть", style=discord.ButtonStyle.danger)
+                                ^^^^
+NameError: name 'self' is not defined
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\ProjectHorizon-by-3lotex\bot\main.py", line 25, in main
+    await bot.start(DISCORD_TOKEN)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 786, in start
+    await self.login(token)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\client.py", line 629, in login
+    await self.setup_hook()
+  File "D:\ProjectHorizon-by-3lotex\bot\core\bot.py", line 69, in setup_hook
+    await self.load_extension('bot.cogs.tickets')
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1029, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 954, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'bot.cogs.tickets' raised an error: NameError: name 'self' is not defined
+2026-08-17 02:05:45,475 | ERROR    | discord.ui.view | Ignoring exception in view <TicketSelectView timeout=None children=1> for item <Select placeholder='📂 Выберите тему обращения...' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 46, in select_callback
+    await cmd.callback(cmd.cog, ctx=interaction, subject=theme_name)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 230, in ticket
+    ctx.author: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+    ^^^^^^^^^^
+AttributeError: 'Interaction' object has no attribute 'author'
+2026-08-17 02:12:52,445 | ERROR    | discord.ui.view | Ignoring exception in view <TicketSelectView timeout=None children=1> for item <Select placeholder='📂 Выберите тему обращения...' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 55, in select_callback
+    ctx = await self.bot.get_context(fake_msg)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1299, in get_context
+    view = StringView(origin.content)
+                      ^^^^^^^^^^^^^^
+AttributeError: 'Object' object has no attribute 'content'
+2026-08-17 02:13:41,693 | ERROR    | discord.ui.view | Ignoring exception in view <TicketSelectView timeout=None children=1> for item <Select placeholder='📂 Выберите тему обращения...' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 55, in select_callback
+    ctx = await self.bot.get_context(fake_msg)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1299, in get_context
+    view = StringView(origin.content)
+                      ^^^^^^^^^^^^^^
+AttributeError: 'Object' object has no attribute 'content'
+2026-08-17 02:17:07,384 | ERROR    | discord.ui.view | Ignoring exception in view <TicketSelectView timeout=None children=1> for item <Select placeholder='📂 Выберите тему обращения...' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 49, in select_callback
+    ctx = commands.Context(
+        bot=self.bot,
+    ...<3 lines>...
+        command=cmd
+    )
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\context.py", line 211, in __init__
+    self._state: ConnectionState = self.message._state
+                                   ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute '_state'
+2026-08-17 02:29:50,777 | ERROR    | discord.ui.view | Ignoring exception in view <TicketCreateView timeout=None children=1> for item <Button style=<ButtonStyle.success: 3> url=None disabled=False label='Создать тикет' emoji=<PartialEmoji animated=False name='🎫' id=None> row=None sku_id=None>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 245, in create_ticket
+    ctx = await self.bot.get_context(fake_msg)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\bot.py", line 1300, in get_context
+    ctx = cls(prefix=None, view=view, bot=self, message=origin)
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ext\commands\context.py", line 211, in __init__
+    self._state: ConnectionState = self.message._state
+                                   ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Object' object has no attribute '_state'
+2026-08-17 02:33:56,200 | ERROR    | discord.ui.view | Ignoring exception in view <TicketSelectView timeout=None children=1> for item <Select placeholder='Выберите тему обращения...' min_values=1 max_values=1 disabled=False>
+Traceback (most recent call last):
+  File "C:\Users\opkal\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\discord\ui\view.py", line 430, in _scheduled_task
+    await item.callback(interaction)
+  File "D:\ProjectHorizon-by-3lotex\bot\cogs\tickets.py", line 32, in select_callback
+    self.category = self.values[0]
+                    ^^^^^^^^^^^
+AttributeError: 'TicketSelectView' object has no attribute 'values'
+2026-08-18 02:49:05,714 | ERROR    | discord | Command error: Command raised an exception: NotFound: 404 Not Found (error code: 10008): Unknown Message
+NoneType: None
+2026-08-18 02:49:43,438 | ERROR    | discord | Command error: Command raised an exception: NotFound: 404 Not Found (error code: 10008): Unknown Message
+NoneType: None
