@@ -1,0 +1,49 @@
+import json
+from typing import Optional, Any
+import redis.asyncio as redis
+from ..core.config import REDIS_HOST, REDIS_PORT, REDIS_DB
+from ..core.logger import logger
+
+class EventBus:
+    """Публикует события в Redis Stream для последующей обработки."""
+
+    STREAM_NAME = "audit_events"
+
+    def __init__(self):
+        self.redis = redis.Redis(
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_DB,
+            decode_responses=True,
+        )
+
+    async def connect(self):
+        await self.redis.ping()
+        logger.info("EventBus connected to Redis")
+
+    async def publish_event(
+        self,
+        guild_id: int,
+        log_type: str,
+        action: str,
+        actor_id: Optional[int] = None,
+        target_id: Optional[int] = None,
+        source: str = "manual",
+        details: Optional[dict[str, Any]] = None,
+    ) -> None:
+        payload = {
+            "guild_id": str(guild_id),
+            "log_type": log_type,
+            "action": action,
+            "actor_id": "" if actor_id is None else str(actor_id),
+            "target_id": "" if target_id is None else str(target_id),
+            "source": source,
+            "details": json.dumps(details or {}, ensure_ascii=False),
+        }
+        try:
+            await self.redis.xadd(self.STREAM_NAME, payload, maxlen=10000, approximate=True)
+        except Exception as e:
+            logger.error(f"Failed to publish event to Redis: {e}")
+
+    async def close(self):
+        await self.redis.close()
