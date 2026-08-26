@@ -1,0 +1,390 @@
+import discord
+from discord.ext import commands
+import asyncio
+import random
+from .logger import logger
+from .config import DISCORD_TOKEN
+from ..services.event_bus import EventBus
+from ..services.audit_logger import AuditLoggerService
+from ..services.database import DatabaseService
+
+class Bot(commands.Bot):
+    def __init__(self):
+        intents = discord.Intents.default()
+        intents.message_content = True
+        intents.members = True
+        intents.guilds = True
+        intents.voice_states = True
+        super().__init__(
+            command_prefix="!",
+            intents=intents,
+        )
+        
+        self.remove_command('help')
+        
+        self.event_bus = EventBus()
+        self.audit_logger = AuditLoggerService()
+        self.db = DatabaseService()
+        self.statuses = [
+            ("watching", "за поражением врагов"),
+            ("watching", "как серверы горят"),
+            ("watching", "за каждым твоим шагом"),
+            ("watching", "как админы спят"),
+            ("watching", "за твоими сообщениями"),
+            ("watching", "как тикеты закрываются"),
+            ("playing", "с судьбами серверов"),
+            ("playing", "в прятки с банами"),
+            ("playing", "с огнём модерации"),
+            ("playing", "в шахматы с Discord API"),
+            ("playing", "с твоими нервами"),
+            ("playing", "в Horizon Bot v1.0"),
+            ("listening", "к молитвам пользователей"),
+            ("listening", "как тикеты плачут"),
+            ("listening", "к звукам банов"),
+            ("listening", "как сервер дышит"),
+            ("listening", "к тишине после мута"),
+            ("listening", "к жалобам на модерацию"),
+            ("competing", "за звание лучшего бота"),
+            ("competing", "в скорости банов"),
+            ("competing", "с другими ботами"),
+            ("competing", "в конкурсе красоты"),
+            ("competing", "за внимание админов"),
+            ("competing", "в марафоне аптайма"),
+        ]
+
+    async def setup_hook(self):
+        await self.event_bus.connect()
+        await self.audit_logger.start()
+        await self.db.connect()
+
+        await self.load_extension('bot.cogs.tickets')
+        await self.load_extension('bot.cogs.staff')
+        await self.load_extension('bot.cogs.moderation')
+        await self.load_extension('bot.cogs.help')
+        await self.load_extension('bot.cogs.error_handler')
+        logger.info("Cogs loaded")
+
+        try:
+            await self.tree.sync()
+            logger.info("Slash commands synced")
+        except Exception as e:
+            logger.warning(f"Failed to sync slash commands: {e}")
+
+    async def on_ready(self):
+        logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
+        logger.info(f"Serving {len(self.guilds)} guilds")
+        
+        self.loop.create_task(self.rotate_status())
+
+        # ==========================================
+        # АВТО-ВОССТАНОВЛЕНИЕ ЧЕРЕЗ 10 СЕКУНД
+        # ==========================================
+        self.loop.create_task(self.auto_restore())
+
+    async def auto_restore(self):
+        await asyncio.sleep(10)
+        logger.info("🔄 Авто-восстановление: запуск...")
+
+        for guild in self.guilds:
+            try:
+                # Тикеты
+                tickets_cog = self.get_cog("Tickets")
+                if tickets_cog:
+                    await tickets_cog.tick_reset_logic(guild)
+            except Exception as e:
+                logger.warning(f"⚠️ Ошибка авто-восстановления тикетов: {e}")
+
+            try:
+                # Штат
+                staff_cog = self.get_cog("Staff")
+                if staff_cog:
+                    await staff_cog.reload_staff_logic(guild)
+            except Exception as e:
+                logger.warning(f"⚠️ Ошибка авто-восстановления штата: {e}")
+
+    async def rotate_status(self):
+        while True:
+            try:
+                shuffled = self.statuses.copy()
+                random.shuffle(shuffled)
+                
+                for status_type, text in shuffled[:10]:
+                    if status_type == "watching":
+                        activity = discord.Activity(type=discord.ActivityType.watching, name=text)
+                    elif status_type == "playing":
+                        activity = discord.Activity(type=discord.ActivityType.playing, name=text)
+                    elif status_type == "listening":
+                        activity = discord.Activity(type=discord.ActivityType.listening, name=text)
+                    elif status_type == "competing":
+                        activity = discord.Activity(type=discord.ActivityType.competing, name=text)
+                    else:
+                        activity = discord.Streaming(name=text, url="https://twitch.tv/3lotex")
+                    
+                    await self.change_presence(activity=activity)
+                    await asyncio.sleep(random.randint(15, 45))
+                
+                await asyncio.sleep(60)
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Status rotation error: {e}")
+                await asyncio.sleep(60)
+
+    async def close(self):
+        try:
+            await self.audit_logger.stop()
+        except:
+            pass
+        try:
+            await self.event_bus.close()
+        except:
+            pass
+        try:
+            await self.db.close()
+        except:
+            pass
+        try:
+            await super().close()
+        except:
+            pass
+
+    async def on_member_join(self, member: discord.Member):
+        details = {
+            "user": {
+                "id": member.id,
+                "name": str(member),
+                "avatar_url": str(member.display_avatar.url) if member.display_avatar else None,
+            },
+            "account_created_at": member.created_at.isoformat(),
+        }
+        await self.event_bus.publish_event(
+            guild_id=member.guild.id,
+            log_type="join",
+            action="join",
+            target_id=member.id,
+            source="system",
+            details=details,
+        )
+
+    async def on_member_remove(self, member: discord.Member):
+        details = {
+            "user": {
+                "id": member.id,
+                "name": str(member),
+                "avatar_url": str(member.display_avatar.url) if member.display_avatar else None,
+            },
+            "joined_at": member.joined_at.isoformat() if member.joined_at else None,
+        }
+        await self.event_bus.publish_event(
+            guild_id=member.guild.id,
+            log_type="leave",
+            action="leave",
+            target_id=member.id,
+            source="system",
+            details=details,
+        )
+
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+        if before.channel == after.channel:
+            return
+
+        if before.channel is None and after.channel is not None:
+            action = "voice_join"
+        elif before.channel is not None and after.channel is None:
+            action = "voice_leave"
+        else:
+            action = "voice_move"
+
+        details = {
+            "from_channel_id": before.channel.id if before.channel else None,
+            "from_channel_name": before.channel.name if before.channel else None,
+            "to_channel_id": after.channel.id if after.channel else None,
+            "to_channel_name": after.channel.name if after.channel else None,
+            "action": action,
+        }
+        await self.event_bus.publish_event(
+            guild_id=member.guild.id,
+            log_type="voice",
+            action=action,
+            target_id=member.id,
+            source="system",
+            details=details,
+        )
+
+    async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
+        if before.name != after.name:
+            details = {"entity": "guild", "change_type": "name", "old_value": before.name, "new_value": after.name}
+            await self.event_bus.publish_event(
+                guild_id=after.id,
+                log_type="server_update",
+                action="guild_update",
+                source="system",
+                details=details,
+            )
+        if before.icon != after.icon:
+            details = {"entity": "guild", "change_type": "icon", "old_value": str(before.icon), "new_value": str(after.icon)}
+            await self.event_bus.publish_event(
+                guild_id=after.id,
+                log_type="server_update",
+                action="guild_update",
+                source="system",
+                details=details,
+            )
+
+    async def on_guild_channel_create(self, channel: discord.abc.GuildChannel):
+        details = {
+            "entity": "channel",
+            "entity_id": channel.id,
+            "change_type": "created",
+            "channel_type": str(channel.type),
+            "name": channel.name,
+        }
+        await self.event_bus.publish_event(
+            guild_id=channel.guild.id,
+            log_type="server_update",
+            action="channel_create",
+            source="system",
+            details=details,
+        )
+
+    async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel):
+        details = {
+            "entity": "channel",
+            "entity_id": channel.id,
+            "change_type": "deleted",
+            "channel_type": str(channel.type),
+            "name": channel.name,
+        }
+        await self.event_bus.publish_event(
+            guild_id=channel.guild.id,
+            log_type="server_update",
+            action="channel_delete",
+            source="system",
+            details=details,
+        )
+
+    async def on_guild_channel_update(self, before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
+        changes = []
+        if before.name != after.name:
+            changes.append({"change_type": "name", "old_value": before.name, "new_value": after.name})
+        if getattr(before, "position", None) != getattr(after, "position", None):
+            changes.append({"change_type": "position", "old_value": getattr(before, "position", None), "new_value": getattr(after, "position", None)})
+
+        for change in changes:
+            details = {
+                "entity": "channel",
+                "entity_id": after.id,
+                "change_type": change["change_type"],
+                "old_value": change["old_value"],
+                "new_value": change["new_value"],
+                "channel_type": str(after.type),
+            }
+            await self.event_bus.publish_event(
+                guild_id=after.guild.id,
+                log_type="server_update",
+                action="channel_update",
+                source="system",
+                details=details,
+            )
+
+    async def on_guild_role_create(self, role: discord.Role):
+        details = {
+            "entity": "role",
+            "entity_id": role.id,
+            "change_type": "created",
+            "name": role.name,
+            "permissions": role.permissions.value,
+        }
+        await self.event_bus.publish_event(
+            guild_id=role.guild.id,
+            log_type="server_update",
+            action="role_create",
+            source="system",
+            details=details,
+        )
+
+    async def on_guild_role_delete(self, role: discord.Role):
+        details = {
+            "entity": "role",
+            "entity_id": role.id,
+            "change_type": "deleted",
+            "name": role.name,
+        }
+        await self.event_bus.publish_event(
+            guild_id=role.guild.id,
+            log_type="server_update",
+            action="role_delete",
+            source="system",
+            details=details,
+        )
+
+    async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
+        changes = []
+        if before.name != after.name:
+            changes.append({"change_type": "name", "old_value": before.name, "new_value": after.name})
+        if before.permissions != after.permissions:
+            changes.append({"change_type": "permissions", "old_value": before.permissions.value, "new_value": after.permissions.value})
+
+        for change in changes:
+            details = {
+                "entity": "role",
+                "entity_id": after.id,
+                "change_type": change["change_type"],
+                "old_value": change["old_value"],
+                "new_value": change["new_value"],
+            }
+            await self.event_bus.publish_event(
+                guild_id=after.guild.id,
+                log_type="server_update",
+                action="role_update",
+                source="system",
+                details=details,
+            )
+
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        if before.nick != after.nick:
+            details = {
+                "change_type": "nickname_change",
+                "old_value": before.nick,
+                "new_value": after.nick,
+            }
+            await self.event_bus.publish_event(
+                guild_id=after.guild.id,
+                log_type="moderation",
+                action="nickname_change",
+                actor_id=after.id,
+                target_id=after.id,
+                source="system",
+                details=details,
+            )
+        added_roles = set(after.roles) - set(before.roles)
+        removed_roles = set(before.roles) - set(after.roles)
+        for role in added_roles:
+            details = {
+                "change_type": "role_add",
+                "role_id": role.id,
+                "role_name": role.name,
+            }
+            await self.event_bus.publish_event(
+                guild_id=after.guild.id,
+                log_type="moderation",
+                action="role_add",
+                target_id=after.id,
+                source="system",
+                details=details,
+            )
+        for role in removed_roles:
+            details = {
+                "change_type": "role_remove",
+                "role_id": role.id,
+                "role_name": role.name,
+            }
+            await self.event_bus.publish_event(
+                guild_id=after.guild.id,
+                log_type="moderation",
+                action="role_remove",
+                target_id=after.id,
+                source="system",
+                details=details,
+            )
