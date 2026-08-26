@@ -1,0 +1,19 @@
+import discord
+from discord.ext import commands
+from typing import Optional
+
+async def is_staff_or_owner(bot: commands.Bot, member: discord.Member) -> bool:
+    if member.guild.owner_id == member.id:
+        return True
+    row = await bot.db.fetchone(
+        "SELECT 1 FROM staff_members WHERE guild_id = ? AND user_id = ? AND is_active = 1",
+        member.guild.id, member.id
+    )
+    return row is not None
+
+def has_staff_permission():
+    async def predicate(ctx: commands.Context):
+        if not ctx.guild:
+            return False
+        return await is_staff_or_owner(ctx.bot, ctx.author)
+    return commands.check(predicate)
